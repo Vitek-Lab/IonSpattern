@@ -17,7 +17,7 @@ MATCH<-function(msset=msset, label_ref=label_ref, label_comp=label_comp)
       match_score[i,j]<-length(intersect(l1,l2))/(length(l1)/2+length(l2)/2)
 
 
-      if (abs(match_score-1)<0.05)
+      if (abs(match_score[i,j]-1)<0.05)
       {
         print(paste0("match",i,j))
       }
