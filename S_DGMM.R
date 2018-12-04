@@ -1,6 +1,6 @@
 
 ####################step3
-DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
+DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="Km")
 {
   ##################weight matrix
   coords<-coord(msset)
@@ -18,33 +18,54 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
       
       if (w[i,j]==1)
       {
-        w[i,j]<-exp(-((coord(rccnorep)$x[i]-coord(rccnorep)$x[j])^2+sp_ratio*(coord(rccnorep)$y[i]-coord(rccnorep)$y[j])^2))
-        *exp(-t(spectra(rccnorep)[,j]-spectra(rccnorep)[,i])%*%(spectra(rccnorep)[,j]-spectra(rccnorep)[,i])/10000)
+        w[i,j]<-exp(-((coord(rccnorep)$x[i]-coord(rccnorep)$x[j])^2+sp_ratio*(coord(rccnorep)$y[i]-coord(rccnorep)$y[j])^2))*exp(-t(spectra(rccnorep)[,j]-spectra(rccnorep)[,i])%*%(spectra(rccnorep)[,j]-spectra(rccnorep)[,i])/10000)
       }
     }
   }
   
+  
+  rmlist<-which(rowSums(w)==0)
+  w<-w[-rmlist,-rmlist]
   ###################################fit DGMM
-  Annl=1
+  
+  
+  #Annl=0
   tt<-1
   int<-spectra(msset)[f,]
-  gmm<-densityMclust(int,G=3,modelNames="V")
+  
+  int<-int[-rmlist]
   x<-int
   N=length(x)
-  k<-gmm$G
-  g<-k
-  #mu=c(99,130);
-  #sigma=c(147,210);
-  mu<-gmm$parameters$mean
-  #mu<-c(30,60,90)
-  sigma<-gmm$parameters$variance$sigmasq
-  #sigma<-c(50,80,100)
-  alpha=rep(1,g);
+  ###############initialize using k-means
+  
+  if (initialization=="km")
+  {
+    km<-kmeans(int,centers =k)
+    mu<-km$centers
+    sigma<-(mu*0.2)^2
+    
+  }
+  
+  ##############initialize using Gaussian Mixture Model
+  
+  if (initialization=="gmm")
+  {
+    gmm<-densityMclust(int,G=k,modelNames="V")
+    mu<-gmm$parameters$mean
+    sigma<-gmm$parameters$variance$sigmasq
+  }
+  
+ ############initialize alpha beta
+ 
+  alpha<-rep(1,k)
   beta=1;
+  
+  #########step size
   eta<-min(mu)/step
-  dmu<-rep(1,g)
-  dsg<-rep(1,g)
-  dalpha<-rep(1,g)
+  ###########differential
+  dmu<-rep(1,k)
+  dsg<-rep(1,k)
+  dalpha<-rep(1,k)
   ##calculate priors
   y<-matrix(0, nrow=N, ncol=K)
   PI<-matrix(1/K, nrow=N, ncol=K)
@@ -52,8 +73,8 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
   px<-matrix(0, nrow=N, ncol=K)
   logpx<-matrix(0, nrow=N, ncol=K)
   iteration=100
-  mutrace<-matrix(0,ncol=K,nrow=iteration)
-  sigtrace<-matrix(0,ncol=K,nrow=iteration)
+  mutrace<-matrix(0,ncol=k,nrow=iteration)
+  sigtrace<-matrix(0,ncol=k,nrow=iteration)
   alphatrace<-matrix(0,ncol=K,nrow=iteration)
   betatrace<-matrix(0,ncol=1,nrow=iteration)
   loglik<-rep(0,iteration)
@@ -71,18 +92,18 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
   }
   
   y<-px*PI/rowSums(px*PI)
+  ##########handling data out of storage range
   y[y[,1]==0,1]<-rep(1e-200, length(y[y[,1]==0,1]))
   y[y[,2]==0,2]<-rep(1e-200, length(y[y[,2]==0,2]))
   
   for (i in 1:iteration)
   {
-    
-    
-    
+    ############ybar
     ybar<-w%*%y/rowSums(w)
-    # ybar[ybar[,1]==0,1]<-rep(1e-100, length(ybar[ybar[,1]==0,1]))
-    # ybar[ybar[,2]==0,2]<-rep(1e-100, length(ybar[ybar[,2]==0,2]))
+
     ybar[ybar==0]<-1e-100
+    
+    #############loglikelihod
     loglik[i]<--sum(log(rowSums(t(t((ybar)^beta)*alpha^2)/rowSums(t(t((ybar)^beta)*alpha^2))*px)))
     logybar<-log(ybar)
     for ( j in 1:K)
@@ -90,9 +111,7 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
       logPI[,j]<-2*log(abs(alpha[j]))+beta*logybar[,j]
     }
     logPI<-logPI-rowMin(logPI)
-    #  logPI<-pmin(logPI,100)
-    #  logPI<-exp(logPI)
-    #  PI<-logPI/rowSums(logPI)
+
     for ( j in 1:K)
     {
       PI[,j]<-alpha[j]^2*ybar[,j]^beta
@@ -115,9 +134,10 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
     
     
     y<-px*PI/rowSums(px*PI)
-    #  y[y[,1]==0,1]<-rep(1e-200, length(y[y[,1]==0,1]))
-    #  y[y[,2]==0,2]<-rep(1e-200, length(y[y[,2]==0,2]))
+
     y[y==0]<-1e-100
+    
+    ###################calculate differential
     for ( j in 1:K)
     {
       dmu[j]<-sum(y[,j]*1/sigma[j]*(mu[j]-x))
@@ -129,6 +149,7 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
     }
     
     dbeta=sum(y*(-log(ybar)+rowSums(t(t((ybar)^beta)*alpha^2)*log(ybar))/rowSums(t(t((ybar)^beta)*alpha^2))))
+    ##################updata parameters
     mu<-mu-eta*dmu
     sigma<-sigma-eta*dsg
     sigma[sigma<=0]<-0.006327605
@@ -136,6 +157,7 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
     beta<-beta-eta*dbeta
     beta<-max(beta,0)
     beta<-min(beta,10)
+
     ############################simulated annealing
     if (Annl==TRUE)
     {
@@ -208,8 +230,20 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,)
     betatrace[i,]<-beta
     #########cooling
     tt<-tt-1/iteration
+
   }
-  msset$dgmm<-apply(y,1, function (x) which(x==max(x)))
-  image(msset, formula = dgmm~x*y,asp=5,colorkey=F)
+
+  
+  
+  xx<-rep(1,ncol(msset))
+  xx[-rmlist]<-apply(y,1, function (x) which(x==max(x)))
+  msset$dgmm<-xx
+  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
+  
+  msset$dgmm<-y[,1]
+  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F,main=paste0(i))
+  msset$dgmm<-apply(ybar,1, function (x) which(x==max(x)))
+  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F,main=paste0(i))
+
   return(list(mu,sigma,alpha,beta,mutrace,sigtrace,alphatrace,betatrace,loglik,y))
 }
