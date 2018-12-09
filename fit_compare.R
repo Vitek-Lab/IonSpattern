@@ -1,17 +1,21 @@
-############single sample
 
-fit_DGMM<-function(msset=msset, f=f, k=0,out=3, kmax=3)
+#################################fit Dirichlet Gaussian Mixture Model
+
+
+fit_DGMM<-function(w=w,msset=msset, f=f, k=0,out=3, kmax=3)
 {
   ########## k is not specified
   if (k==0)
   {
     gmm<-GMM(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
-    K_DGMM<-function(msset=msset,gmm=gmm,f=f)
-      k<-K_DGMM$kr
+    k<-gmm[[2]]
+    gmm<-gmm[[1]]
+    k<-K_DGMM(msset=msset,gmm=gmm,f=f,k=k, initialization="km")
   }
-  dgmm<-S_DGMM((msset=msset, k=k, f=f, sp_ratio=4,step=1e5,Annl=0, initialization="Km"))
+  dgmm<-DGMM(msset=msset, w<-w, k=k, f=f, sp_ratio=2,step=1e5,Annl=0, initialization="Km")
   return(dgmm)
 }
+
 
 #############class comparison: select differentially abundant ions
 

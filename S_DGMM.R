@@ -1,39 +1,27 @@
 
 ####################step3
-DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="Km")
+DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="Km")
 {
-  ##################weight matrix
-  coords<-coord(msset)
-  w <- apply(coords, 1, function(pt)
-    (abs(as.numeric(pt["y"]) - as.numeric(coords[,'y'])) <= radius) & (abs(as.numeric(pt["x"]) - as.numeric(coords[,"x"])) <= radius))
-  diag(w) <- F
-  w<-apply(w,1,as.numeric)
-  
-  #################similarity score
-  rccnorep<-msset
-  for (i in 1:nrow(w))
-  {
-    for (j in 1:nrow(w))
-    {
-      
-      if (w[i,j]==1)
-      {
-        w[i,j]<-exp(-((coord(rccnorep)$x[i]-coord(rccnorep)$x[j])^2+sp_ratio*(coord(rccnorep)$y[i]-coord(rccnorep)$y[j])^2))*exp(-t(spectra(rccnorep)[,j]-spectra(rccnorep)[,i])%*%(spectra(rccnorep)[,j]-spectra(rccnorep)[,i])/10000)
-      }
-    }
-  }
-  
+
+  ############# remove isolated pixels
   
   rmlist<-which(rowSums(w)==0)
-  w<-w[-rmlist,-rmlist]
+
+  
+  if (length(rmlist)!=0)
+  {
+    w<-w[-rmlist,-rmlist]
+  }
+  
   ###################################fit DGMM
-  
-  
+  int<-spectra(msset)[f,]
+  if (length(rmlist)!=0)
+  {
+    int<-int[-rmlist]
+  }
   #Annl=0
   tt<-1
-  int<-spectra(msset)[f,]
-  
-  int<-int[-rmlist]
+
   x<-int
   N=length(x)
   ###############initialize using k-means
@@ -41,8 +29,9 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="K
   if (initialization=="km")
   {
     km<-kmeans(int,centers =k)
-    mu<-km$centers
+    mu<-sort(km$centers, decreasing = F)
     sigma<-(mu*0.2)^2
+    sigma[sigma<0.0006]<-0.0006
     
   }
   
@@ -59,7 +48,7 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="K
  
   alpha<-rep(1,k)
   beta=1;
-  
+  K<-k
   #########step size
   eta<-min(mu)/step
   ###########differential
@@ -93,8 +82,8 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="K
   
   y<-px*PI/rowSums(px*PI)
   ##########handling data out of storage range
-  y[y[,1]==0,1]<-rep(1e-200, length(y[y[,1]==0,1]))
-  y[y[,2]==0,2]<-rep(1e-200, length(y[y[,2]==0,2]))
+  y[y==0]<-1e-100
+  
   
   for (i in 1:iteration)
   {
@@ -151,6 +140,10 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="K
     dbeta=sum(y*(-log(ybar)+rowSums(t(t((ybar)^beta)*alpha^2)*log(ybar))/rowSums(t(t((ybar)^beta)*alpha^2))))
     ##################updata parameters
     mu<-mu-eta*dmu
+    for (mu_ind in 1:k)
+    {
+      mu[mu_ind]<-max(mu[mu_ind],0)
+    }
     sigma<-sigma-eta*dsg
     sigma[sigma<=0]<-0.006327605
     alpha<-alpha-eta*dalpha
@@ -231,19 +224,34 @@ DGMM<-function(msset=msset,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="K
     #########cooling
     tt<-tt-1/iteration
 
+
   }
 
   
   
   xx<-rep(1,ncol(msset))
-  xx[-rmlist]<-apply(y,1, function (x) which(x==max(x)))
+  if (length(rmlist)!=0)
+  {
+    xx[-rmlist]<-apply(y,1, function (x) which(x==max(x))) 
+  } else
+  {
+    xx<-apply(y,1, function (x) which(x==max(x)))
+  }
+  
   msset$dgmm<-xx
   image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
   
-  msset$dgmm<-y[,1]
-  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F,main=paste0(i))
-  msset$dgmm<-apply(ybar,1, function (x) which(x==max(x)))
-  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F,main=paste0(i))
+  xx<-rep(1,ncol(msset))
+  if (length(rmlist)!=0)
+  {
+    xx[-rmlist]<-apply(ybar,1, function (x) which(x==max(x))) 
+  } else
+  {
+    xx<-apply(y,1, function (x) which(x==max(x)))
+  }
+  
+  msset$dgmm<-xx
+  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
 
   return(list(mu,sigma,alpha,beta,mutrace,sigtrace,alphatrace,betatrace,loglik,y))
 }

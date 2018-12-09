@@ -14,7 +14,7 @@ MATCH<-function(msset=msset, label_ref=label_ref, label_comp=label_comp)
     for ( j in unique(label_ref))
     {
       l2<-which(label_ref==j)
-      match_score[i,j]<-length(intersect(l1,l2))/(length(l1)/2+length(l2)/2)
+      match_score[i,j]<-length(intersect(l1,l2))/length(l2)
 
 
       if (abs(match_score[i,j]-1)<0.05)
@@ -25,3 +25,10 @@ MATCH<-function(msset=msset, label_ref=label_ref, label_comp=label_comp)
   }
   print(match_score)
 }
+
+
+msset$dgmm<-(label_ref!=2)&(label_comp==1)
+image(msset, formula = dgmm~x*y,asp=3,colorkey=F)
+
+msset$dgmm<-label_ref
+image(msset, formula = dgmm~x*y,asp=2,colorkey=F)

@@ -3,10 +3,10 @@
 
 
 
-K_DGMM<-function(msset=msset,gmm=gmm,f=f)
+K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
 {
   kr<-rep(0,8)
-  for (radius in 1:8)
+  for (radius in 1:6)
   {
     ##################weight matrix
     coords<-coord(msset)
@@ -16,23 +16,54 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f)
     w<-apply(w,1,as.numeric)
     
     
-    
+    rmlist<-which(rowSums(w)==0)
+    if (length(rmlist)!=0)
+    {
+      w<-w[-rmlist,-rmlist]
+    }
+
     ###################################fit DGMM candidate
     int<-spectra(msset)[f,]
-    gmm<-densityMclust(int,G=3,modelNames="V")
+    if (length(rmlist)!=0)
+    {
+      int<-int[-rmlist]
+    }
     x<-int
     N=length(x)
-    k<-gmm$G
+
+    K<-k
     g<-k
-    #mu=c(99,130);
-    #sigma=c(147,210);
-    mu<-gmm$parameters$mean
-    #mu<-c(30,60,90)
-    sigma<-gmm$parameters$variance$sigmasq
-    #sigma<-c(50,80,100)
+    ###############initialize using k-means
+    
+    if (initialization=="km")
+    {
+      km<-kmeans(int,centers =k)
+      mu<-km$centers
+      sigma<-(mu*0.2)^2
+      
+    }
+    
+    ##############initialize using Gaussian Mixture Model
+    
+    if (initialization=="gmm")
+    {
+      if (gmm$G != k)
+      {
+        mu[1]<-0.1
+        sigma[1]<-0.004
+        mu[2:k]<-gmm$parameters$mean
+        sigma[2:k]<-gmm$parameters$variance$sigmasq
+      } else
+      {
+        mu<-gmm$parameters$mean
+        sigma<-gmm$parameters$variance$sigmasq
+      }
+      
+    }
+    
     alpha=rep(1,g);
     beta=1;
-    eta<-min(mu)/1e3
+    eta<-min(mu)/1e4
     dmu<-rep(1,g)
     dsg<-rep(1,g)
     dalpha<-rep(1,g)
@@ -60,18 +91,18 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f)
     }
     
     y<-px*PI/rowSums(px*PI)
-    y[y[,1]==0,1]<-rep(1e-200, length(y[y[,1]==0,1]))
-    y[y[,2]==0,2]<-rep(1e-200, length(y[y[,2]==0,2]))
+    y[y==0]<-1e-200
     
     for (i in 1:iteration)
     {
       
       
-      
+      ############ybar
       ybar<-w%*%y/rowSums(w)
-      # ybar[ybar[,1]==0,1]<-rep(1e-100, length(ybar[ybar[,1]==0,1]))
-      # ybar[ybar[,2]==0,2]<-rep(1e-100, length(ybar[ybar[,2]==0,2]))
+      
       ybar[ybar==0]<-1e-100
+      
+      #############loglikelihod
       loglik[i]<--sum(log(rowSums(t(t((ybar)^beta)*alpha^2)/rowSums(t(t((ybar)^beta)*alpha^2))*px)))
       logybar<-log(ybar)
       for ( j in 1:K)
@@ -79,9 +110,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f)
         logPI[,j]<-2*log(abs(alpha[j]))+beta*logybar[,j]
       }
       logPI<-logPI-rowMin(logPI)
-      #  logPI<-pmin(logPI,100)
-      #  logPI<-exp(logPI)
-      #  PI<-logPI/rowSums(logPI)
+      
       for ( j in 1:K)
       {
         PI[,j]<-alpha[j]^2*ybar[,j]^beta
@@ -131,8 +160,17 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f)
       betatrace[i,]<-beta
       
     }
-    msset$dgmm<-apply(y,1, function (x) which(x==max(x)))
-    image(msset, formula = dgmm~x*y,asp=5,colorkey=F)
+    xx<-rep(1,ncol(msset))
+    if (length(rmlist)!=0)
+    {
+      xx[-rmlist]<-apply(ybar,1, function (x) which(x==max(x))) 
+    } else
+    {
+      xx<-apply(ybar,1, function (x) which(x==max(x)))
+    }
+
+    msset$dgmm<-xx
+    image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
     kprim<-length(unique(msset$dgmm))
     L<-unique(msset$dgmm)
     for (i in L)
@@ -181,4 +219,4 @@ pnnlCropped <- pnnlCropped[,pnnlCropped$sample %in% selectedSamples]
 pnnlCropped$mouse <- factor(substr(pnnlCropped$sample, 1, 2))
 
 msset<-pnnlCropped[,pnnlCropped$sample==unique(pnnlCropped$sample)[1]]
-kr<-K_DGMM(msset=msset,gmm=gmm,f=321)
+kr<-K_DGMM(msset=msset,gmm=gmm,f=321,k=k,initialization="km")

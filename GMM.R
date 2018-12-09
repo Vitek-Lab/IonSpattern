@@ -15,7 +15,8 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
   {
     lod<-1
     x[x==min(x)]<-NA
-    x2<-x[x<quantile(x)[3]+out*(quantile(x)[4]-quantile(x)[2])]
+    x2<-x[x<quantile(x, na.rm=TRUE)[3]+out*(quantile(x,na.rm=TRUE)[4]-quantile(x,na.rm=TRUE)[2])]
+    x2<-x2[!is.na(x2)]
 
   } else
   {
@@ -32,7 +33,7 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
       {
         Di[i-1]<-gmm$BIC[i]-gmm$BIC[i-1]
       }
-      if (length(min(which(abs(Di)<10)))!=0)
+      if (length(which(abs(Di)<10))!=0)
       {
         k<-min(which(abs(Di)<10))
       } else
@@ -49,6 +50,7 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
     } else
     {
       k<-min(k,kmax-1)
+      k<-k+1
     }
   } else
   {
@@ -56,17 +58,13 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
   }
   gmm<-densityMclust(x2,G=k,modelNames="V")
   plot(gmm,what="density",x2,breaks=50)
-  aa<-rep(NA,ncol(msset))
-  x<-spectra(msset)[f,]
-  if (lod==1)
-  {
-   aa[x==NA]<-NA
-  }
-  aa[x<quantile(x)[3]+out*(quantile(x)[4]-quantile(x)[2])]<-apply(gmm$z,1, function (x) which(x==max(x)))
+  aa<-rep(0,ncol(msset))
+
+  aa[!is.na(x) & (x<quantile(x, na.rm=TRUE)[3]+out*(quantile(x,na.rm=TRUE)[4]-quantile(x,na.rm=TRUE)[2]))]<-apply(gmm$z,1, function (x) which(x==max(x)))
   msset$gmm<-aa
   image(msset, formula = gmm~x*y,main=paste0("feature",f))
   
-  return(gmm)
+  return(list(gmm,k))
 }
 
 
@@ -120,4 +118,5 @@ for (i in 1:nrow(pnnlCropped))
   }
   
 }
+
 
