@@ -8,7 +8,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
   kr<-rep(0,8)
   for (radius in 1:6)
   {
-    ##################weight matrix
+    ##################neighboring matrix
     coords<-coord(msset)
     w <- apply(coords, 1, function(pt)
       (abs(as.numeric(pt["y"]) - as.numeric(coords[,'y'])) <= radius) & (abs(as.numeric(pt["x"]) - as.numeric(coords[,"x"])) <= radius))
@@ -23,12 +23,14 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
     }
 
     ###################################fit DGMM candidate
+    ##########ion intensities
     int<-spectra(msset)[f,]
     if (length(rmlist)!=0)
     {
       int<-int[-rmlist]
     }
     x<-int
+    #######number of pixels
     N=length(x)
 
     K<-k
@@ -61,35 +63,44 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
       
     }
     
+    ############initialize alpha in Dirichlet process
     alpha=rep(1,g);
+    ############initialize beta in PI
     beta=1;
+    
+    ###########step size
     eta<-min(mu)/1e4
+    ##########differentials of mu, sigma and alpha
     dmu<-rep(1,g)
     dsg<-rep(1,g)
     dalpha<-rep(1,g)
-    ##calculate priors
+    #########posterior probability
     y<-matrix(0, nrow=N, ncol=K)
+    #########prior probability
     PI<-matrix(1/K, nrow=N, ncol=K)
     logPI<-matrix(1/K, nrow=N, ncol=K)
+    #########P(x|mu, sigma)
     px<-matrix(0, nrow=N, ncol=K)
     logpx<-matrix(0, nrow=N, ncol=K)
     iteration=100
+    #########trace
     mutrace<-matrix(0,ncol=K,nrow=iteration)
     sigtrace<-matrix(0,ncol=K,nrow=iteration)
     alphatrace<-matrix(0,ncol=K,nrow=iteration)
     betatrace<-matrix(0,ncol=1,nrow=iteration)
+    #########negative loglikelihood
     loglik<-rep(0,iteration)
-    ##p(x|\theta)
+    #########initialize P(x|mu,sigma)
     for (j in 1:K)
     {
       px[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu[j])^2/2/sigma[j])
     }
-    ##logp(x|\theta)
+
     for (j in 1:K)
     {
       logpx[,j]<-log(1/(2* pi )^0.5*1/sigma[j]^0.5)-(x-mu[j])^2/2/sigma[j]
     }
-    
+    ######### initialize posterior probability
     y<-px*PI/rowSums(px*PI)
     y[y==0]<-1e-200
     
@@ -97,12 +108,12 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
     {
       
       
-      ############ybar
+      ############average posterior probability
       ybar<-w%*%y/rowSums(w)
       
       ybar[ybar==0]<-1e-100
       
-      #############loglikelihod
+      #############negative loglikelihod
       loglik[i]<--sum(log(rowSums(t(t((ybar)^beta)*alpha^2)/rowSums(t(t((ybar)^beta)*alpha^2))*px)))
       logybar<-log(ybar)
       for ( j in 1:K)
@@ -119,12 +130,12 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
       PI<-PI/rowSums(PI)
       
       PI[PI==0]<-1e-100 
-      ##p(x|\theta)
+      ##p(x|mu, sigma)
       for (j in 1:K)
       {
         px[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu[j])^2/2/sigma[j])
       }
-      ##logp(x|\theta)
+      ##logp(x|mu, sigma)
       for (j in 1:K)
       {
         logpx[,j]<-log(1/(2* pi )^0.5*1/sigma[j]^0.5)-(x-mu[j])^2/2/sigma[j]
@@ -133,8 +144,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
       
       
       y<-px*PI/rowSums(px*PI)
-      #  y[y[,1]==0,1]<-rep(1e-200, length(y[y[,1]==0,1]))
-      #  y[y[,2]==0,2]<-rep(1e-200, length(y[y[,2]==0,2]))
+
       y[y==0]<-1e-100
       for ( j in 1:K)
       {

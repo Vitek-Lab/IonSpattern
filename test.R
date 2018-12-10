@@ -1,7 +1,7 @@
 ###############test model using mouse uterine data
 
 ###############calculate weight matrix
-
+load("data/S1RR2.rdata")
 w<-W_matrix(msset,sp_ratio=3,radius=1)
 
 

@@ -6,7 +6,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   ############# remove isolated pixels
   
   rmlist<-which(rowSums(w)==0)
-
+  
   
   if (length(rmlist)!=0)
   {
@@ -21,7 +21,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   }
   #Annl=0
   tt<-1
-
+  
   x<-int
   N=length(x)
   ###############initialize using k-means
@@ -44,32 +44,37 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     sigma<-gmm$parameters$variance$sigmasq
   }
   
- ############initialize alpha beta
- 
+  ############initialize alpha in Dirichlet process
+  
   alpha<-rep(1,k)
+  ############initialize beta in PI
   beta=1;
   K<-k
   #########step size
   eta<-min(mu)/step
-  ###########differential
+  ###########differentials of mu, sigma and alpha
   dmu<-rep(1,k)
   dsg<-rep(1,k)
   dalpha<-rep(1,k)
-  ##calculate priors
+  ###########posterior probability
   y<-matrix(0, nrow=N, ncol=K)
+  #########prior probability
   PI<-matrix(1/K, nrow=N, ncol=K)
   logPI<-matrix(1/K, nrow=N, ncol=K)
+  #########P(x|mu, sigma)
   px<-matrix(0, nrow=N, ncol=K)
   logpx<-matrix(0, nrow=N, ncol=K)
   iteration=100
+  #########trace
   mutrace<-matrix(0,ncol=k,nrow=iteration)
   sigtrace<-matrix(0,ncol=k,nrow=iteration)
   alphatrace<-matrix(0,ncol=K,nrow=iteration)
   betatrace<-matrix(0,ncol=1,nrow=iteration)
+  #########negative loglikelihood
   loglik<-rep(0,iteration)
   PI_p<-matrix(0, nrow=N, ncol=K)
   px_p<-matrix(0, nrow=N, ncol=K)
-  ##p(x|\theta)
+  #########initialize P(x|mu,sigma)
   for (j in 1:K)
   {
     px[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu[j])^2/2/sigma[j])
@@ -79,7 +84,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   {
     logpx[,j]<-log(1/(2* pi )^0.5*1/sigma[j]^0.5)-(x-mu[j])^2/2/sigma[j]
   }
-  
+  ######## initialize posterior probability
   y<-px*PI/rowSums(px*PI)
   ##########handling data out of storage range
   y[y==0]<-1e-100
@@ -87,12 +92,12 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   
   for (i in 1:iteration)
   {
-    ############ybar
+    ############average posterior probability
     ybar<-w%*%y/rowSums(w)
-
+    
     ybar[ybar==0]<-1e-100
     
-    #############loglikelihod
+    #############negative loglikelihod
     loglik[i]<--sum(log(rowSums(t(t((ybar)^beta)*alpha^2)/rowSums(t(t((ybar)^beta)*alpha^2))*px)))
     logybar<-log(ybar)
     for ( j in 1:K)
@@ -100,7 +105,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
       logPI[,j]<-2*log(abs(alpha[j]))+beta*logybar[,j]
     }
     logPI<-logPI-rowMin(logPI)
-
+    
     for ( j in 1:K)
     {
       PI[,j]<-alpha[j]^2*ybar[,j]^beta
@@ -109,12 +114,12 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     PI<-PI/rowSums(PI)
     
     PI[PI==0]<-1e-100 
-    ##p(x|\theta)
+    ##p(x|mu, sigma)
     for (j in 1:K)
     {
       px[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu[j])^2/2/sigma[j])
     }
-    ##logp(x|\theta)
+    ##logp(x|mu, sigma)
     for (j in 1:K)
     {
       logpx[,j]<-log(1/(2* pi )^0.5*1/sigma[j]^0.5)-(x-mu[j])^2/2/sigma[j]
@@ -123,7 +128,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     
     
     y<-px*PI/rowSums(px*PI)
-
+    
     y[y==0]<-1e-100
     
     ###################calculate differential
@@ -154,18 +159,16 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     ############################simulated annealing
     if (Annl==TRUE)
     {
-      #  beta_p<-runif(1, min=max(beta-0.5*beta*tt,0), max=beta+0.5*beta*tt)
-      #  beta_p<-runif(1,min=0, max=10)
+      ####randomly change first element of mu
       mu_p<-c(runif(1, min=max(mu[1]-0.2*mu[1]*tt,0), max=mu[1]+0.2*mu[1]*tt), mu[2:k])
       for ( j in 1:K)
       {
         PI_p[,j]<-alpha[j]^2
       }
       PI_p<-PI/rowSums(PI)
-      #  PI[PI[,1]==0,1]<-rep(1e-100, length(PI[PI[,1]==0,1]))
-      #  PI[PI[,2]==0,2]<-rep(1e-100, length(PI[PI[,2]==0,2]))
+
       PI_p[PI_p==0]<-1e-100 
-      ##p(x|\theta)
+      ##p(x|mu, sigma)
       for (j in 1:K)
       {
         px_p[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu_p[j])^2/2/sigma[j])
@@ -179,10 +182,9 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
         PI_p[,j]<-alpha[j]^2*ybar[,j]^beta
       }
       PI_p<-PI/rowSums(PI)
-      #  PI[PI[,1]==0,1]<-rep(1e-100, length(PI[PI[,1]==0,1]))
-      #  PI[PI[,2]==0,2]<-rep(1e-100, length(PI[PI[,2]==0,2]))
+
       PI_p[PI_p==0]<-1e-100 
-      ##p(x|\theta)
+      ##p(x|mu, sigma)
       for (j in 1:K)
       {
         px_p[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu_p[j])^2/2/sigma[j])
@@ -197,10 +199,9 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
         PI_p[,j]<-alpha[j]^2*ybar[,j]^beta
       }
       PI_p<-PI/rowSums(PI)
-      #  PI[PI[,1]==0,1]<-rep(1e-100, length(PI[PI[,1]==0,1]))
-      #  PI[PI[,2]==0,2]<-rep(1e-100, length(PI[PI[,2]==0,2]))
+
       PI_p[PI_p==0]<-1e-100 
-      ##p(x|\theta)
+
       for (j in 1:K)
       {
         px_p[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu[j])^2/2/sigma[j])
@@ -239,7 +240,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   }
   
   msset$dgmm<-xx
-  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
+  image(msset, formula = dgmm~x*y,asp=sp_ratio, main=paste0(f,"y"))
   
   xx<-rep(1,ncol(msset))
   if (length(rmlist)!=0)
@@ -251,7 +252,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   }
   
   msset$dgmm<-xx
-  image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
+  image(msset, formula = dgmm~x*y,asp=sp_ratio, main=paste0(f,"ybar"))
 
   return(list(mu,sigma,alpha,beta,mutrace,sigtrace,alphatrace,betatrace,loglik,y))
 }
