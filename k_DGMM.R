@@ -3,10 +3,10 @@
 
 
 
-K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
+K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,step=1e7,initialization="km")
 {
-  kr<-rep(0,8)
-  for (radius in 1:6)
+  kr<-rep(0,1)
+  for (radius in 1:1)
   {
     ##################neighboring matrix
     coords<-coord(msset)
@@ -69,7 +69,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
     beta=1;
     
     ###########step size
-    eta<-min(mu)/1e4
+    eta<-min(mu)/step
     ##########differentials of mu, sigma and alpha
     dmu<-rep(1,g)
     dsg<-rep(1,g)
@@ -102,6 +102,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
     }
     ######### initialize posterior probability
     y<-px*PI/rowSums(px*PI)
+    y[is.na(y)==TRUE]<-1/k
     y[y==0]<-1e-200
     
     for (i in 1:iteration)
@@ -144,7 +145,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
       
       
       y<-px*PI/rowSums(px*PI)
-
+      y[is.na(y)==TRUE]<-1/k
       y[y==0]<-1e-100
       for ( j in 1:K)
       {
@@ -185,7 +186,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,initialization="km")
     L<-unique(msset$dgmm)
     for (i in L)
     {
-      if (length(msset$dgmm[msset$dgmm==i])/ncol(msset)<0.05)
+      if (length(msset$dgmm[msset$dgmm==i])/ncol(msset)<0.01)
       {
         kprim<-kprim-1
         msset$dgmm[msset$dgmm==i]<-NA

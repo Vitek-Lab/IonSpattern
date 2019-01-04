@@ -14,7 +14,7 @@ MATCH<-function(msset=msset, label_ref=label_ref, label_comp=label_comp)
     for ( j in unique(label_ref))
     {
       l2<-which(label_ref==j)
-      match_score[i,j]<-length(intersect(l1,l2))/length(l2)
+      match_score[i,j]<-length(intersect(l1,l2))/(length(l2)/2+length(l1)/2)
 
 
       if (abs(match_score[i,j]-1)<0.05)

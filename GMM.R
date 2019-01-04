@@ -33,9 +33,9 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
       {
         Di[i-1]<-gmm$BIC[i]-gmm$BIC[i-1]
       }
-      if (length(which(abs(Di)<10))!=0)
+      if (length(which(abs(Di)<3))!=0)
       {
-        k<-min(which(abs(Di)<10))
+        k<-min(which(abs(Di)<3))
       } else
       {
         k<-gmm$G

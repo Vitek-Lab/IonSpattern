@@ -1,6 +1,6 @@
 
 ####################step3
-DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initialization="Km")
+DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5, iteration=1000,Annl=0, sig=0.2,initialization="Km")
 {
 
   ############# remove isolated pixels
@@ -30,7 +30,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   {
     km<-kmeans(int,centers =k)
     mu<-sort(km$centers, decreasing = F)
-    sigma<-(mu*0.2)^2
+    sigma<-(mu*sig)^2
     sigma[sigma<0.0006]<-0.0006
     
   }
@@ -64,7 +64,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
   #########P(x|mu, sigma)
   px<-matrix(0, nrow=N, ncol=K)
   logpx<-matrix(0, nrow=N, ncol=K)
-  iteration=100
+  #iteration=100
   #########trace
   mutrace<-matrix(0,ncol=k,nrow=iteration)
   sigtrace<-matrix(0,ncol=k,nrow=iteration)
@@ -85,7 +85,9 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     logpx[,j]<-log(1/(2* pi )^0.5*1/sigma[j]^0.5)-(x-mu[j])^2/2/sigma[j]
   }
   ######## initialize posterior probability
+  
   y<-px*PI/rowSums(px*PI)
+  y[is.na(y)==TRUE]<-1/k
   ##########handling data out of storage range
   y[y==0]<-1e-100
   
@@ -119,7 +121,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     {
       px[,j]<-1/(2* pi )^0.5*1/sigma[j]^0.5*exp(-(x-mu[j])^2/2/sigma[j])
     }
-    ##logp(x|mu, sigma)
+    ##logp(x|mu, sigma)1
     for (j in 1:K)
     {
       logpx[,j]<-log(1/(2* pi )^0.5*1/sigma[j]^0.5)-(x-mu[j])^2/2/sigma[j]
@@ -128,7 +130,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5,Annl=0, initializatio
     
     
     y<-px*PI/rowSums(px*PI)
-    
+    y[is.na(y)==TRUE]<-1/k
     y[y==0]<-1e-100
     
     ###################calculate differential
