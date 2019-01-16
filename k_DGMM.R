@@ -3,10 +3,10 @@
 
 
 
-K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,step=1e7,initialization="km")
+K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,step=1e7,initialization="km",r_max=3)
 {
-  kr<-rep(0,1)
-  for (radius in 1:1)
+  kr<-rep(0,r_max)
+  for (radius in 1:r_max)
   {
     ##################neighboring matrix
     coords<-coord(msset)

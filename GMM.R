@@ -47,10 +47,11 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
     if (lod==0)
     {
       k<-min(k,kmax)
+      kp<-k
     } else
     {
       k<-min(k,kmax-1)
-      k<-k+1
+      kp<-k+1
     }
   } else
   {
@@ -63,7 +64,7 @@ GMM<-function(msset=msset,f=f,kmax=kmax,out=out,kprior=0)
   aa[!is.na(x) & (x<quantile(x, na.rm=TRUE)[3]+out*(quantile(x,na.rm=TRUE)[4]-quantile(x,na.rm=TRUE)[2]))]<-apply(gmm$z,1, function (x) which(x==max(x)))
   msset$gmm<-aa
   image(msset, formula = gmm~x*y,main=paste0("feature",f))
-  
+  k<-kp
   return(list(gmm,k))
 }
 
