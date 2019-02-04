@@ -181,7 +181,7 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,step=1e7,initialization="km",r_max=
     }
 
     msset$dgmm<-xx
-    image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
+#    image(msset, formula = dgmm~x*y,asp=sp_ratio,colorkey=F)
     kprim<-length(unique(msset$dgmm))
     L<-unique(msset$dgmm)
     for (i in L)
@@ -218,16 +218,3 @@ K_DGMM<-function(msset=msset,gmm=gmm,f=f,k=k,step=1e7,initialization="km",r_max=
 }
 
 
-############################mouse brain
-
-load("pnnl_peaksTIC-new.rdata")
-pnnlCropped<-pnnl.peaksTIC_1
-rm(pnnl.peaksTIC_1)
-selectedSamples <- c("c1_1", "c1_2", "c1_3", 
-                     "z6_1", "z6_2", "z6_3")
-
-pnnlCropped <- pnnlCropped[,pnnlCropped$sample %in% selectedSamples]
-pnnlCropped$mouse <- factor(substr(pnnlCropped$sample, 1, 2))
-
-msset<-pnnlCropped[,pnnlCropped$sample==unique(pnnlCropped$sample)[1]]
-kr<-K_DGMM(msset=msset,gmm=gmm,f=321,k=k,initialization="km")

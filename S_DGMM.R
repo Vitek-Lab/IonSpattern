@@ -181,7 +181,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5, iteration=1000,Annl=
       ybar_p[ybar_p==0]<-1e-100
       for ( j in 1:K)
       {
-        PI_p[,j]<-alpha[j]^2*ybar[,j]^beta
+        PI_p[,j]<-alpha[j]^2*ybar_p[,j]^beta
       }
       PI_p<-PI/rowSums(PI)
 
@@ -242,7 +242,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5, iteration=1000,Annl=
   }
   
   msset$dgmm<-xx
-  image(msset, formula = dgmm~x*y,asp=sp_ratio, main=paste0(f,"y"))
+#  image(msset, formula = dgmm~x*y,asp=sp_ratio, main=paste0(f,"y"))
   
   xx<-rep(1,ncol(msset))
   if (length(rmlist)!=0)
@@ -254,7 +254,7 @@ DGMM<-function(msset=msset,w=w,k=k,f=f,sp_ratio=4,step=1e5, iteration=1000,Annl=
   }
   
   msset$dgmm<-xx
-  image(msset, formula = dgmm~x*y,asp=sp_ratio, main=paste0(f,"ybar"))
+#  image(msset, formula = dgmm~x*y,asp=sp_ratio, main=paste0(f,"ybar"))
 
   return(list(mu,sigma,alpha,beta,mutrace,sigtrace,alphatrace,betatrace,loglik,y))
 }
